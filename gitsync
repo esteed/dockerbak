@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Git Sync Script - Sync local changes with GitHub repository
+# Usage: ./gitsync [commit message]
+# If no commit message is provided, a default one will be used
+
+set -e  # Exit on error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}=== Git Sync Started ===${NC}\n"
+
+# Check if there are any changes
+if [[ -z $(git status -s) ]]; then
+    echo -e "${YELLOW}No changes to commit.${NC}"
+    echo -e "${GREEN}Pulling latest changes from remote...${NC}"
+    git pull origin main
+    echo -e "\n${GREEN}=== Repository is up to date ===${NC}"
+    exit 0
+fi
+
+# Show current status
+echo -e "${YELLOW}Current changes:${NC}"
+git status -s
+echo ""
+
+# Get commit message from argument or use default
+if [ -z "$1" ]; then
+    COMMIT_MSG="Update: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo -e "${YELLOW}No commit message provided. Using default:${NC} $COMMIT_MSG"
+else
+    COMMIT_MSG="$*"
+    echo -e "${YELLOW}Commit message:${NC} $COMMIT_MSG"
+fi
+echo ""
+
+# Stage all changes
+echo -e "${GREEN}Staging all changes...${NC}"
+git add .
+
+# Commit changes
+echo -e "${GREEN}Committing changes...${NC}"
+git commit -m "$(cat <<EOF
+$COMMIT_MSG
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+EOF
+)"
+
+# Pull latest changes (with rebase to avoid merge commits)
+echo -e "\n${GREEN}Pulling latest changes from remote...${NC}"
+if git pull --rebase origin main; then
+    echo -e "${GREEN}✓ Successfully pulled and rebased${NC}"
+else
+    echo -e "${RED}✗ Pull failed. You may need to resolve conflicts manually.${NC}"
+    echo -e "${YELLOW}Run 'git rebase --abort' to cancel, or resolve conflicts and run 'git rebase --continue'${NC}"
+    exit 1
+fi
+
+# Push changes to remote
+echo -e "\n${GREEN}Pushing changes to GitHub...${NC}"
+if git push origin main; then
+    echo -e "${GREEN}✓ Successfully pushed to GitHub${NC}"
+else
+    echo -e "${RED}✗ Push failed. Check your network connection and credentials.${NC}"
+    exit 1
+fi
+
+# Show final status
+echo -e "\n${GREEN}=== Git Sync Completed Successfully ===${NC}"
+echo -e "${YELLOW}Repository:${NC} $(git config --get remote.origin.url)"
+echo -e "${YELLOW}Branch:${NC} $(git branch --show-current)"
+echo -e "${YELLOW}Latest commit:${NC} $(git log -1 --pretty=format:'%h - %s')"
+echo ""
