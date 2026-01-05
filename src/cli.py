@@ -142,29 +142,40 @@ class DockerBakCLI:
     def _get_credentials(self) -> Optional[Dict]:
         """Get SSH credentials from store or prompt user."""
         # Check for existing credentials
-        hosts = self.credential_manager.list_hosts()
+        hosts_with_names = self.credential_manager.list_hosts_with_names()
 
-        if hosts:
-            # Show existing hosts
+        if hosts_with_names:
+            # Show existing hosts with vanity names
             console.print("[cyan]Saved Connections:[/cyan]")
-            choices = hosts + ["Add new connection"]
+            # Create choices with display names
+            display_names = list(hosts_with_names.values())
+            choices = display_names + ["Add new connection"]
 
-            host = questionary.select(
+            selected_display = questionary.select(
                 "Select a host:",
                 choices=choices
             ).ask()
 
-            if host is None:
+            if selected_display is None:
                 return None
 
-            if host == "Add new connection":
+            if selected_display == "Add new connection":
                 return self._prompt_new_credentials()
             else:
-                # Load credentials and include the hostname
-                creds = self.credential_manager.load_credentials(host)
-                if creds:
-                    creds['host'] = host  # Add hostname to credentials
-                return creds
+                # Map display name back to actual hostname
+                actual_host = None
+                for host, display_name in hosts_with_names.items():
+                    if display_name == selected_display:
+                        actual_host = host
+                        break
+
+                if actual_host:
+                    # Load credentials and include the hostname
+                    creds = self.credential_manager.load_credentials(actual_host)
+                    if creds:
+                        creds['host'] = actual_host  # Add hostname to credentials
+                    return creds
+                return None
         else:
             return self._prompt_new_credentials()
 
